@@ -52,7 +52,7 @@ A clean, Notion-inspired calendar showing all 12 months with:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/CalendarWeek.git
+git clone https://github.com/MrDNA1708/CalendarWeek.git
 cd CalendarWeek
 
 # Install dependencies
@@ -61,5 +61,6 @@ pip install -r requirements.txt
 # Run the application
 
 python calendarweek.py
+
 
 
