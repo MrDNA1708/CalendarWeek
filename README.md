@@ -37,7 +37,7 @@ A clean, Notion-inspired calendar showing all 12 months with:
 
 ### Option 1: Download Pre-built Executable (Windows)
 
-1. Go to the [Releases](https://github.com/yourusername/CalendarWeek/releases) page
+1. Go to the [Releases](https://github.com/MrDNA1708/CalendarWeek/releases) page
 2. Download `CalendarWeek.exe`
 3. Run it – the icon will appear in your system tray
 
@@ -59,4 +59,5 @@ cd CalendarWeek
 pip install -r requirements.txt
 
 # Run the application
+
 python calendarweek.py
