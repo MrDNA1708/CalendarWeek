@@ -69,7 +69,6 @@ SYSTEM = platform.system()  # Operating system: "Windows", "Linux", or "Darwin" 
 # - Linux: Creates a .desktop file in ~/.config/autostart/
 # - macOS: Creates a .plist file in ~/Library/LaunchAgents/
 
-
 def get_exe_path():
     """
     Get the absolute path of the current executable or script.
@@ -374,7 +373,6 @@ def toggle_startup(icon, item):
 # CALENDAR WEEK UTILITIES
 # =============================================================================
 
-
 def current_cw():
     """
     Get the current ISO calendar week number.
@@ -390,9 +388,36 @@ def current_cw():
 
 
 # =============================================================================
-# ICON CREATION
+# PERIODIC AUTO REFRESH
 # =============================================================================
 
+def start_auto_refresh(icon, interval=3600):
+    """
+    Periodically refresh the tray icon to update the week number.
+    
+    Args:
+        icon: The pystray Icon object
+        interval (int): Refresh interval in seconds (default: 1 hour)
+    """
+    import time
+    
+    def refresh_loop():
+        last_cw = current_cw()
+        while icon.visible:
+            time.sleep(interval)
+            new_cw = current_cw()
+            if new_cw != last_cw:
+                icon.icon = create_icon(new_cw)
+                icon.title = f"Week {new_cw:02d}"
+                last_cw = new_cw
+    
+    thread = threading.Thread(target=refresh_loop, daemon=True)
+    thread.start()
+
+
+# =============================================================================
+# ICON CREATION
+# =============================================================================
 
 def create_icon(cw):
     """
@@ -492,7 +517,6 @@ def create_window_icon():
 # =============================================================================
 # CALENDAR WINDOW
 # =============================================================================
-
 
 def show_calendar():
     """
@@ -766,7 +790,6 @@ def show_calendar():
 # TRAY MENU ACTIONS
 # =============================================================================
 
-
 def open_calendar(icon, item):
     """
     Open the calendar window in a separate thread.
@@ -818,7 +841,6 @@ def show_path_warning():
 # MAIN ENTRY POINT
 # =============================================================================
 
-
 def run():
     """
     Main application entry point.
@@ -864,6 +886,9 @@ def run():
         title=f"Week {cw:02d}",         # Tooltip text
         menu=menu                       # Context menu
     )
+
+    # Auto refresh each hour
+    start_auto_refresh(icon, interval=3600)
     
     # This blocks and runs the tray icon event loop
     icon.run()
@@ -874,4 +899,5 @@ def run():
 # =============================================================================
 
 if __name__ == "__main__":
+
     run()
