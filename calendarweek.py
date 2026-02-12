@@ -55,6 +55,11 @@ def _init_tk():
 # GLOBAL STATE
 # =============================================================================
 
+import socket
+import tempfile
+LOCK_SOCKET = None
+LOCK_PORT = 47200
+
 calendar_window = None      # Reference to the calendar window (None if closed)
 window_lock = threading.Lock()  # Thread lock to prevent race conditions
 APP_NAME = "CalendarWeek"   # Application name used for startup registration
@@ -782,6 +787,16 @@ def show_calendar():
     root.bind("<Escape>", on_close)  # Close with Escape key
     root.protocol("WM_DELETE_WINDOW", on_close)  # Close with X button
     
+    
+    root.lift()                          # Porta sopra le altre finestre
+    root.attributes('-topmost', True)    # Forza in primo piano
+    root.after(100, lambda: root.attributes('-topmost', False))  # Rimuove topmost dopo 100ms
+    root.focus_force()                   # Forza il focus
+    
+    # Su Windows, un trucco aggiuntivo per garantire il focus
+    if sys.platform == 'win32':
+        root.after(200, lambda: root.focus_force())
+
     # Start the window event loop
     root.mainloop()
 
@@ -838,6 +853,62 @@ def show_path_warning():
 
 
 # =============================================================================
+# SINGLE INSTANCE MECHANISM
+# =============================================================================
+def acquire_single_instance_lock():
+    """
+    Tenta di acquisire un lock per garantire che solo un'istanza sia in esecuzione.
+    
+    Usa un socket su una porta locale specifica. Se la porta è già in uso,
+    significa che un'altra istanza è in esecuzione.
+    
+    Returns:
+        bool: True se il lock è stato acquisito (prima istanza),
+              False se un'altra istanza è già in esecuzione
+    """
+    global LOCK_SOCKET
+    
+    LOCK_SOCKET = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    
+    try:
+        # Tenta di fare il bind sulla porta locale
+        # Se fallisce, un'altra istanza è già in esecuzione
+        LOCK_SOCKET.bind(('127.0.0.1', LOCK_PORT))
+        LOCK_SOCKET.listen(1)
+        return True
+    except socket.error:
+        # Porta già in uso = altra istanza attiva
+        LOCK_SOCKET.close()
+        LOCK_SOCKET = None
+        return False
+def release_single_instance_lock():
+    """
+    Rilascia il lock dell'istanza singola.
+    Chiamata automaticamente quando l'applicazione si chiude.
+    """
+    global LOCK_SOCKET
+    
+    if LOCK_SOCKET is not None:
+        try:
+            LOCK_SOCKET.close()
+        except:
+            pass
+        LOCK_SOCKET = None
+def notify_existing_instance():
+    """
+    Notifica l'istanza esistente che l'utente ha tentato di aprire una nuova istanza.
+    Opzionale: può essere usato per portare la finestra del calendario in primo piano.
+    """
+    try:
+        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client.connect(('127.0.0.1', LOCK_PORT))
+        client.send(b'SHOW')
+        client.close()
+    except:
+        pass
+
+
+# =============================================================================
 # MAIN ENTRY POINT
 # =============================================================================
 
@@ -852,6 +923,17 @@ def run():
     """
     from pystray import Icon, Menu, MenuItem
     
+    # ===== CHECK SINGLE ISTANCE =====
+    if not acquire_single_instance_lock():
+        # Another istance is already running, notify it and exit
+        print("CalendarWeek is already running.")
+        notify_existing_instance()
+        sys.exit(0)
+    
+    # Register the cleanup function and relase the lock when the application exits
+    import atexit
+    atexit.register(release_single_instance_lock)
+
     # Check for path mismatch at startup (runs in background)
     threading.Thread(target=show_path_warning, daemon=True).start()
     
@@ -886,6 +968,27 @@ def run():
         title=f"Week {cw:02d}",         # Tooltip text
         menu=menu                       # Context menu
     )
+
+    # ===== LISTENER FOR NEW INSTANCES =====
+    def listen_for_new_instances():
+        """
+        Listen to the new requests from other instances and open the calendar.
+        """
+        while True:
+            try:
+                if LOCK_SOCKET is None:
+                    break
+                conn, addr = LOCK_SOCKET.accept()
+                data = conn.recv(1024)
+                conn.close()
+                if data == b'SHOW':
+                    # Open the calendar window when a new instance tries to start
+                    threading.Thread(target=show_calendar, daemon=True).start()
+            except:
+                break
+    
+    # Start the listener in background
+    threading.Thread(target=listen_for_new_instances, daemon=True).start()
 
     # Auto refresh each hour
     start_auto_refresh(icon, interval=3600)
