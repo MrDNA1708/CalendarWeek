@@ -358,16 +358,16 @@ def start_auto_refresh(icon, interval=3600):
             try:
                 if not icon.visible:
                     break
-                time.sleep(check_step)
-                elapsed += check_step
 
-                if elapsed >= interval:
-                    elapsed = 0
-                    new_cw = current_cw()
-                    if new_cw != last_cw:
-                        icon.icon = create_icon(new_cw)
-                        icon.title = f"Week {new_cw:02d}"
-                        last_cw = new_cw
+                time.sleep(check_step)
+                
+                new_cw = current_cw()
+
+                if new_cw != last_cw:
+                    icon.icon = create_icon(new_cw)
+                    icon.title = f"Week {new_cw:02d}"
+                    last_cw = new_cw
+                    
             except Exception as e:
                 # Thread never dies silently: log the error and keep looping
                 print(f"[AutoRefresh] Error: {e}")
