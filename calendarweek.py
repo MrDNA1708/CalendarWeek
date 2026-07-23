@@ -350,22 +350,25 @@ def start_auto_refresh(icon, interval=3600):
     import time
 
     def refresh_loop():
-        last_cw = current_cw()
-        elapsed = 0
+        last_cw = None
         check_step = 30  # Sleep granularity in seconds; robust against OS sleep
 
         while True:
             try:
-                if not icon.visible:
-                    break
 
                 time.sleep(check_step)
-                
                 new_cw = current_cw()
 
                 if new_cw != last_cw:
                     icon.icon = create_icon(new_cw)
                     icon.title = f"Week {new_cw:02d}"
+                
+                try:
+                    icon.visible = False
+                    icon.visible = True
+                except:
+                    pass
+                
                     last_cw = new_cw
                     
             except Exception as e:
